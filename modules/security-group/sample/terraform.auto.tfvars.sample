@@ -1,0 +1,169 @@
+# Ejemplo de configuración de variables para el módulo Security Group
+# Renombra este archivo a terraform.auto.tfvars y ajusta los valores según tus necesidades
+
+# Información básica del proyecto
+client        = "transer"
+functionality = "webapp"
+environment   = "dev"
+
+# Configuración de Security Groups usando estructura de mapa
+sg_config = {
+  # Web tier security group - public access
+  "web-servers" = {
+    ticket      = "TRANS-001"
+    description = "Security group for web servers with public access"
+    vpc_id      = "vpc-12345678"  # Replace with your actual VPC ID
+    application = "web"
+    accessclass = "public"
+    ingress = [
+      {
+        from_port       = 80
+        to_port         = 80
+        protocol        = "tcp"
+        cidr_blocks     = ["0.0.0.0/0"]
+        security_groups = []
+        description     = "HTTP access from anywhere"
+      },
+      {
+        from_port       = 443
+        to_port         = 443
+        protocol        = "tcp"
+        cidr_blocks     = ["0.0.0.0/0"]
+        security_groups = []
+        description     = "HTTPS access from anywhere"
+      },
+      {
+        from_port       = 22
+        to_port         = 22
+        protocol        = "tcp"
+        cidr_blocks     = ["10.0.0.0/8"]
+        security_groups = []
+        description     = "SSH access from private networks"
+      }
+    ]
+    egress = [
+      {
+        from_port   = 0
+        to_port     = 0
+        protocol    = "-1"
+        cidr_blocks = ["0.0.0.0/0"]
+        description = "All outbound traffic"
+      }
+    ]
+  }
+  
+  # Application tier security group - private access
+  "app-servers" = {
+    ticket      = "TRANS-002"
+    description = "Security group for application servers"
+    vpc_id      = "vpc-12345678"  # Replace with your actual VPC ID
+    application = "app"
+    accessclass = "private"
+    ingress = [
+      {
+        from_port       = 8080
+        to_port         = 8080
+        protocol        = "tcp"
+        cidr_blocks     = []
+        security_groups = ["sg-1234567890abcdef0"]  # Replace with actual web-servers SG ID
+        description     = "Application access from web tier"
+      },
+      {
+        from_port       = 22
+        to_port         = 22
+        protocol        = "tcp"
+        cidr_blocks     = ["10.0.0.0/8"]
+        security_groups = []
+        description     = "SSH access from private networks"
+      }
+    ]
+    egress = [
+      {
+        from_port   = 443
+        to_port     = 443
+        protocol    = "tcp"
+        cidr_blocks = ["0.0.0.0/0"]
+        description = "HTTPS outbound for API calls"
+      },
+      {
+        from_port   = 5432
+        to_port     = 5432
+        protocol    = "tcp"
+        cidr_blocks = ["10.0.0.0/8"]
+        description = "PostgreSQL database access"
+      }
+    ]
+  }
+  
+  # Database tier security group - restricted access
+  "db-servers" = {
+    ticket      = "TRANS-003"
+    description = "Security group for database servers"
+    vpc_id      = "vpc-12345678"  # Replace with your actual VPC ID
+    application = "database"
+    accessclass = "restricted"
+    ingress = [
+      {
+        from_port       = 5432
+        to_port         = 5432
+        protocol        = "tcp"
+        cidr_blocks     = []
+        security_groups = ["sg-0987654321fedcba0"]  # Replace with actual app-servers SG ID
+        description     = "PostgreSQL access from application tier"
+      },
+      {
+        from_port       = 22
+        to_port         = 22
+        protocol        = "tcp"
+        cidr_blocks     = ["10.0.1.0/24"]
+        security_groups = []
+        description     = "SSH access from bastion subnet only"
+      }
+    ]
+    egress = [
+      {
+        from_port   = 443
+        to_port     = 443
+        protocol    = "tcp"
+        cidr_blocks = ["0.0.0.0/0"]
+        description = "HTTPS outbound for updates"
+      }
+    ]
+  }
+  
+  # Load balancer security group
+  "load-balancer" = {
+    ticket      = "TRANS-004"
+    description = "Security group for Application Load Balancer"
+    vpc_id      = "vpc-12345678"  # Replace with your actual VPC ID
+    application = "alb"
+    accessclass = "public"
+    ingress = [
+      {
+        from_port       = 80
+        to_port         = 80
+        protocol        = "tcp"
+        cidr_blocks     = ["0.0.0.0/0"]
+        security_groups = []
+        description     = "HTTP access from internet"
+      },
+      {
+        from_port       = 443
+        to_port         = 443
+        protocol        = "tcp"
+        cidr_blocks     = ["0.0.0.0/0"]
+        security_groups = []
+        description     = "HTTPS access from internet"
+      }
+    ]
+    egress = [
+      {
+        from_port   = 8080
+        to_port     = 8080
+        protocol    = "tcp"
+        cidr_blocks = ["10.0.0.0/8"]
+        description = "Forward to application servers"
+      }
+    ]
+  }
+}

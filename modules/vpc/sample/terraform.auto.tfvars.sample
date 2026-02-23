@@ -1,0 +1,155 @@
+# =============================================================================
+# ARCHIVO DE EJEMPLO DE VARIABLES - MÓDULO VPC
+# =============================================================================
+# Copia este archivo como 'terraform.auto.tfvars' y personaliza los valores
+# según tu entorno específico
+
+# =============================================================================
+# CONFIGURACIÓN DEL CLIENTE Y PROYECTO
+# =============================================================================
+
+# Nombre del cliente (requerido)
+client = "transer"
+
+# Funcionalidad del recurso (requerido)
+functionality = "webapp"
+
+# Ambiente de despliegue (requerido: dev, test, prod)
+environment = "dev"
+
+# Nombre del servicio (requerido)
+service = "ecommerce"
+
+# ID del ticket o caso (requerido)
+ticket = "WEBAPP-001"
+
+# =============================================================================
+# CONFIGURACIÓN DE AWS
+# =============================================================================
+
+# Región de AWS donde desplegar los recursos
+aws_region = "us-east-1"
+
+# =============================================================================
+# CONFIGURACIÓN DE RED (OPCIONAL - USAR VALORES POR DEFECTO SI NO SE ESPECIFICA)
+# =============================================================================
+
+# Bloque CIDR principal de la VPC
+# Descomenta y modifica si necesitas un rango diferente al por defecto (10.0.0.0/16)
+# cidr_block = "10.0.0.0/16"
+
+# Tenencia de instancias (default o dedicated)
+# Descomenta si necesitas instancias dedicadas (costo adicional)
+# instance_tenancy = "default"
+
+# Habilitar soporte DNS
+# enable_dns_support = true
+
+# Habilitar hostnames DNS
+# enable_dns_hostnames = true
+
+# =============================================================================
+# CONFIGURACIÓN PERSONALIZADA DE SUBREDES (OPCIONAL)
+# =============================================================================
+# Si no se especifica, se usarán los valores por defecto definidos en variables.tf
+
+# Configuración de subredes públicas
+# Descomenta y modifica si necesitas una configuración diferente
+# public_subnets = [
+#   {
+#     cidr_block        = "10.0.1.0/24"
+#     availability_zone = "us-east-1a"
+#     service           = "alb"
+#   },
+#   {
+#     cidr_block        = "10.0.2.0/24"
+#     availability_zone = "us-east-1b"
+#     service           = "alb"
+#   }
+# ]
+
+# Configuración de subredes privadas
+# Descomenta y modifica si necesitas una configuración diferente
+# private_subnets = [
+#   {
+#     cidr_block        = "10.0.10.0/24"
+#     availability_zone = "us-east-1a"
+#     service           = "app"
+#   },
+#   {
+#     cidr_block        = "10.0.11.0/24"
+#     availability_zone = "us-east-1b"
+#     service           = "app"
+#   }
+# ]
+
+# Configuración de subredes de base de datos
+# Descomenta y modifica si necesitas una configuración diferente
+# database_subnets = [
+#   {
+#     cidr_block        = "10.0.20.0/24"
+#     availability_zone = "us-east-1a"
+#     service           = "mysql"
+#   },
+#   {
+#     cidr_block        = "10.0.21.0/24"
+#     availability_zone = "us-east-1b"
+#     service           = "mysql"
+#   }
+# ]
+
+# =============================================================================
+# CONFIGURACIÓN DE GATEWAYS
+# =============================================================================
+
+# Crear Internet Gateway (true/false)
+create_igw = true
+
+# Crear NAT Gateway (true/false)
+# Nota: El NAT Gateway tiene costo mensual (~$45/mes)
+create_nat_gateway = true
+
+# =============================================================================
+# EJEMPLOS DE CONFIGURACIONES ALTERNATIVAS
+# =============================================================================
+
+# Ejemplo 1: Configuración mínima para desarrollo (sin NAT Gateway)
+# create_nat_gateway = false
+
+# Ejemplo 2: Configuración para producción con múltiples AZ
+# public_subnets = [
+#   {
+#     cidr_block        = "10.0.1.0/24"
+#     availability_zone = "us-east-1a"
+#     service           = "alb"
+#   },
+#   {
+#     cidr_block        = "10.0.2.0/24"
+#     availability_zone = "us-east-1b"
+#     service           = "alb"
+#   },
+#   {
+#     cidr_block        = "10.0.3.0/24"
+#     availability_zone = "us-east-1c"
+#     service           = "alb"
+#   }
+# ]
+
+# Ejemplo 3: Configuración con CIDR personalizado
+# cidr_block = "172.16.0.0/16"
+# public_subnets = [
+#   {
+#     cidr_block        = "172.16.1.0/24"
+#     availability_zone = "us-east-1a"
+#     service           = "web"
+#   }
+# ]
+
+# =============================================================================
+# NOTAS IMPORTANTES
+# =============================================================================
+# 1. Los valores marcados como "requerido" deben ser proporcionados
+# 2. Las configuraciones de subredes son opcionales - se usarán valores por defecto si no se especifican
+# 3. El NAT Gateway tiene costo mensual - considerar deshabilitarlo en entornos de desarrollo
+# 4. Asegúrate de que las zonas de disponibilidad especificadas existan en tu región
+# 5. Los bloques CIDR no deben superponerse entre subredes
