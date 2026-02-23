@@ -1,6 +1,7 @@
 # ============================================
 # Workflow: Deploy to QA environment
 # Trigger: Push to release/* branches or manual
+# Flow: Plan → Show output → Wait approval → Apply
 # ============================================
 
 name: Deploy QA
@@ -11,40 +12,25 @@ on:
       - 'release/*'
 
   workflow_dispatch:
-    inputs:
-      aws_access_key_id:
-        description: 'AWS Access Key ID'
-        required: true
-        type: string
-      aws_secret_access_key:
-        description: 'AWS Secret Access Key'
-        required: true
-        type: string
-      tf_api_token:
-        description: 'Terraform Cloud API Token'
-        required: true
-        type: string
-      action:
-        description: 'Terraform action to perform'
-        required: true
-        type: choice
-        options:
-          - plan
-          - apply
-        default: plan
 
 env:
   TF_WORKSPACE: qa
   AWS_REGION: us-east-1
   WORKING_DIR: functionality
+  TF_VAR_FILE: env/qa/terraform.tfvars
 
 jobs:
-  terraform:
-    name: Terraform ${{ github.event.inputs.action || 'apply' }}
+  # ==========================================
+  # Job 1: Terraform Plan
+  # ==========================================
+  plan:
+    name: Terraform Plan
     runs-on: ubuntu-latest
+    
+    environment: qa-plan
 
-    permissions:
-      contents: read
+    outputs:
+      plan_exitcode: ${{ steps.plan.outputs.exitcode }}
 
     steps:
       - name: Checkout code
@@ -54,13 +40,13 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.13.5
-          cli_config_credentials_token: ${{ github.event.inputs.tf_api_token }}
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ github.event.inputs.aws_access_key_id }}
-          aws-secret-access-key: ${{ github.event.inputs.aws_secret_access_key }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Init
@@ -77,10 +63,74 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
+        id: plan
         working-directory: ${{ env.WORKING_DIR }}
-        run: terraform plan -var-file=env/qa/terraform.tfvars -out=tfplan
+        run: |
+          terraform plan -var-file=${{ env.TF_VAR_FILE }} -out=tfplan -detailed-exitcode
+        continue-on-error: true
+
+      - name: Show Plan Output
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform show tfplan
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-qa
+          path: ${{ env.WORKING_DIR }}/tfplan
+          retention-days: 1
+
+      - name: Plan Summary
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          echo "## Terraform Plan Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          terraform show -no-color tfplan >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================
+  # Job 2: Terraform Apply (requiere aprobación)
+  # ==========================================
+  apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: plan
+    
+    environment: qa
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.5
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform init
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-qa
+          path: ${{ env.WORKING_DIR }}
 
       - name: Terraform Apply
-        if: github.event.inputs.action == 'apply'
         working-directory: ${{ env.WORKING_DIR }}
         run: terraform apply -auto-approve tfplan
+
+      - name: Apply Summary
+        run: |
+          echo "## ✅ Terraform Apply Completed" >> $GITHUB_STEP_SUMMARY
+          echo "Environment: QA" >> $GITHUB_STEP_SUMMARY
+          echo "Workspace: ${{ env.TF_WORKSPACE }}" >> $GITHUB_STEP_SUMMARY
