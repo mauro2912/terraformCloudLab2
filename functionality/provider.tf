@@ -17,6 +17,5 @@ terraform {
 }
 
 provider "aws" {
-  region  = var.aws_region
-  profile = "pragma-labs"
+  region = var.aws_region
 }
