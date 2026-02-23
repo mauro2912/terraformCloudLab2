@@ -1,0 +1,99 @@
+# ============================================
+# Workflow: Deploy to DEV environment
+# Trigger: Push to develop branch or manual
+# ============================================
+
+name: Deploy DEV
+
+# ¿Cuándo se ejecuta este workflow?
+on:
+  # Automático: cuando hay push a la rama develop
+  push:
+    branches:
+      - develop
+
+  # Manual: permite ejecutar desde la UI de GitHub
+  workflow_dispatch:
+    inputs:
+      aws_access_key_id:
+        description: 'AWS Access Key ID'
+        required: true
+        type: string
+      aws_secret_access_key:
+        description: 'AWS Secret Access Key'
+        required: true
+        type: string
+      tf_api_token:
+        description: 'Terraform Cloud API Token'
+        required: true
+        type: string
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+        default: plan
+
+# Variables de entorno globales para todo el workflow
+env:
+  TF_WORKSPACE: dev
+  AWS_REGION: us-east-1
+  WORKING_DIR: functionality
+
+jobs:
+  terraform:
+    name: Terraform ${{ github.event.inputs.action || 'apply' }}
+    runs-on: ubuntu-latest
+
+    # Permisos necesarios
+    permissions:
+      contents: read
+
+    steps:
+      # Paso 1: Descargar el código del repositorio
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Paso 2: Instalar Terraform versión específica
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.5
+          cli_config_credentials_token: ${{ github.event.inputs.tf_api_token }}
+
+      # Paso 3: Configurar credenciales AWS
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ github.event.inputs.aws_access_key_id }}
+          aws-secret-access-key: ${{ github.event.inputs.aws_secret_access_key }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Paso 4: Inicializar Terraform
+      - name: Terraform Init
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform init
+
+      # Paso 5: Validar formato del código
+      - name: Terraform Format Check
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      # Paso 6: Validar configuración
+      - name: Terraform Validate
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform validate
+
+      # Paso 7: Ejecutar Plan
+      - name: Terraform Plan
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform plan -var-file=env/dev/terraform.tfvars -out=tfplan
+
+      # Paso 8: Ejecutar Apply (solo si action=apply)
+      - name: Terraform Apply
+        if: github.event.inputs.action == 'apply'
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform apply -auto-approve tfplan
